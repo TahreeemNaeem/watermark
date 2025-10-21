@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watermark Mask Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .upload-section {
+            border: 3px dashed #667eea;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            background: #f8f9ff;
+            transition: all 0.3s;
+        }
+        
+        .upload-section:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+        }
+        
+        .upload-section input[type="file"] {
+            display: none;
+        }
+        
+        .upload-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: transform 0.2s;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 7px 20px rgba(102, 126, 234, 0.6);
+        }
+        
+        .canvas-container {
+            display: flex;
+            gap: 20px;
+            margin: 30px 0;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .canvas-wrapper {
+            position: relative;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .canvas-wrapper h3 {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-size: 0.9em;
+            z-index: 10;
+        }
+        
+        canvas {
+            display: block;
+            max-width: 100%;
+            cursor: crosshair;
+        }
+        
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .control-group {
+            background: #f8f9ff;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .control-group input[type="range"] {
+            width: 100%;
+            margin: 10px 0;
+        }
+        
+        .control-group input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 1em;
+        }
+        
+        .value-display {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            margin-left: 10px;
+            font-weight: bold;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 30px 0;
+        }
+        
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 7px 20px rgba(102, 126, 234, 0.6);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        .instructions {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .instructions h3 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+        
+        .instructions ul {
+            margin-left: 20px;
+            color: #856404;
+        }
+        
+        .instructions li {
+            margin: 5px 0;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        .stat-card h4 {
+            font-size: 0.9em;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+        
+        .stat-card p {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎭 Watermark Mask Generator</h1>
+            <p>Create precise masks for watermark detection and removal</p>
+        </div>
+        
+        <div class="content">
+            <div class="upload-section">
+                <h2 style="margin-bottom: 20px; color: #667eea;">Upload Your Image</h2>
+                <input type="file" id="fileInput" accept="image/*">
+                <label for="fileInput">
+                    <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                        📁 Choose Image
+                    </button>
+                </label>
+                <p style="margin-top: 15px; color: #666;">Supports JPG, PNG, WebP</p>
+            </div>
+            
+            <div class="instructions">
+                <h3>📋 How to Use:</h3>
+                <ul>
+                    <li><strong>Upload Image:</strong> Click the button above to select your image</li>
+                    <li><strong>Adjust Threshold:</strong> Use the slider to detect watermark edges</li>
+                    <li><strong>Fine-tune:</strong> Adjust minimum/maximum area to filter noise and large objects</li>
+                    <li><strong>Click to Paint:</strong> Click on the mask canvas to manually add/remove areas</li>
+                    <li><strong>Download Mask:</strong> Click "Download Mask" to save your black & white mask</li>
+                </ul>
+            </div>
+            
+            <div class="stats" id="stats" style="display: none;">
+                <div class="stat-card">
+                    <h4>Image Size</h4>
+                    <p id="imageSize">-</p>
+                </div>
+                <div class="stat-card">
+                    <h4>Mask Coverage</h4>
+                    <p id="maskCoverage">0%</p>
+                </div>
+                <div class="stat-card">
+                    <h4>Detected Areas</h4>
+                    <p id="detectedAreas">0</p>
+                </div>
+            </div>
+            
+            <div class="controls" id="controls" style="display: none;">
+                <div class="control-group">
+                    <label>
+                        Gradient Threshold 
+                        <span class="value-display" id="thresholdValue">25</span>
+                    </label>
+                    <input type="range" id="threshold" min="10" max="100" value="25">
+                    <small style="color: #666;">Higher = Less sensitive</small>
+                </div>
+                
+                <div class="control-group">
+                    <label>
+                        Min Area (Remove Noise)
+                        <span class="value-display" id="minAreaValue">15</span>
+                    </label>
+                    <input type="range" id="minArea" min="1" max="100" value="15">
+                    <small style="color: #666;">Removes small dots</small>
+                </div>
+                
+                <div class="control-group">
+                    <label>
+                        Max Area % (Remove Large Objects)
+                        <span class="value-display" id="maxAreaValue">1.0</span>
+                    </label>
+                    <input type="range" id="maxArea" min="1" max="50" value="10">
+                    <small style="color: #666;">Excludes people/main subjects</small>
+                </div>
+                
+                <div class="control-group">
+                    <label>
+                        Brush Size (Manual Edit)
+                        <span class="value-display" id="brushValue">10</span>
+                    </label>
+                    <input type="range" id="brushSize" min="5" max="50" value="10">
+                    <small style="color: #666;">For manual corrections</small>
+                </div>
+                
+                <div class="control-group">
+                    <label>Drawing Mode</label>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <button class="btn btn-success" id="addModeBtn" onclick="setDrawMode(true)" style="flex: 1; padding: 10px;">
+                            ✏️ Add Mask
+                        </button>
+                        <button class="btn btn-danger" id="removeModeBtn" onclick="setDrawMode(false)" style="flex: 1; padding: 10px;">
+                            🧹 Remove Mask
+                        </button>
+                    </div>
+                    <small style="color: #666; display: block; margin-top: 10px;">Current: <strong id="currentMode">Add Mode</strong></small>
+                </div>
+            </div>
+            
+            <div class="canvas-container" id="canvasContainer" style="display: none;">
+                <div class="canvas-wrapper">
+                    <h3>Original Image</h3>
+                    <canvas id="originalCanvas"></canvas>
+                </div>
+                <div class="canvas-wrapper">
+                  
+                    <canvas id="maskCanvas"></canvas>
+                </div>
+            </div>
+            
+            <div class="button-group" id="buttons" style="display: none;">
+                <button class="btn btn-primary" onclick="detectWatermark()">🔍 Detect Watermark</button>
+                <button class="btn btn-secondary" onclick="clearMask()">🗑️ Clear Mask</button>
+                <button class="btn btn-success" onclick="downloadMask()">💾 Download Mask</button>
+                <button class="btn btn-danger" onclick="resetAll()">🔄 Reset All</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let img = new Image();
+        let originalCanvas, maskCanvas, originalCtx, maskCtx;
+        let isDrawing = false;
+        let drawMode = true; // true = add to mask, false = remove from mask
+        
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    img.onload = function() {
+                        setupCanvases();
+                        detectWatermark();
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+        
+        function setupCanvases() {
+            originalCanvas = document.getElementById('originalCanvas');
+            maskCanvas = document.getElementById('maskCanvas');
+            originalCtx = originalCanvas.getContext('2d');
+            maskCtx = maskCanvas.getContext('2d');
+            
+            // Set canvas size (max 600px width for display)
+            const maxWidth = 600;
+            const scale = Math.min(1, maxWidth / img.width);
+            const width = img.width * scale;
+            const height = img.height * scale;
+            
+            originalCanvas.width = maskCanvas.width = width;
+            originalCanvas.height = maskCanvas.height = height;
+            
+            // Draw original image
+            originalCtx.drawImage(img, 0, 0, width, height);
+            
+            // Show UI elements
+            document.getElementById('stats').style.display = 'grid';
+            document.getElementById('controls').style.display = 'grid';
+            document.getElementById('canvasContainer').style.display = 'flex';
+            document.getElementById('buttons').style.display = 'flex';
+            
+            // Update stats
+            document.getElementById('imageSize').textContent = `${img.width}×${img.height}`;
+            
+            // Setup mouse events for manual editing
+            setupMaskEditing();
+            
+            // Setup control listeners
+            setupControls();
+        }
+        
+        function setupControls() {
+            const threshold = document.getElementById('threshold');
+            const minArea = document.getElementById('minArea');
+            const maxArea = document.getElementById('maxArea');
+            const brushSize = document.getElementById('brushSize');
+            
+            threshold.addEventListener('input', (e) => {
+                document.getElementById('thresholdValue').textContent = e.target.value;
+            });
+            
+            minArea.addEventListener('input', (e) => {
+                document.getElementById('minAreaValue').textContent = e.target.value;
+            });
+            
+            maxArea.addEventListener('input', (e) => {
+                const val = (e.target.value / 10).toFixed(1);
+                document.getElementById('maxAreaValue').textContent = val;
+            });
+            
+            brushSize.addEventListener('input', (e) => {
+                document.getElementById('brushValue').textContent = e.target.value;
+            });
+        }
+        
+        function setupMaskEditing() {
+            maskCanvas.addEventListener('mousedown', startDrawing);
+            maskCanvas.addEventListener('mousemove', draw);
+            maskCanvas.addEventListener('mouseup', stopDrawing);
+            maskCanvas.addEventListener('mouseleave', stopDrawing);
+            
+            // Right click to remove from mask
+            maskCanvas.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                drawMode = false;
+            });
+            
+            maskCanvas.addEventListener('mousedown', (e) => {
+                if (e.button === 0) drawMode = true;
+            });
+        }
+        
+        function startDrawing(e) {
+            isDrawing = true;
+            draw(e);
+        }
+        
+        function stopDrawing() {
+            isDrawing = false;
+            updateStats();
+        }
+        
+        function draw(e) {
+            if (!isDrawing) return;
+            
+            const rect = maskCanvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const brushSize = parseInt(document.getElementById('brushSize').value);
+            
+            maskCtx.beginPath();
+            maskCtx.arc(x, y, brushSize, 0, Math.PI * 2);
+            maskCtx.fillStyle = drawMode ? 'white' : 'black';
+            maskCtx.fill();
+        }
+        
+        function detectWatermark() {
+            // Get parameters
+            const threshold = parseInt(document.getElementById('threshold').value);
+            const minArea = parseInt(document.getElementById('minArea').value);
+            const maxAreaPercent = parseInt(document.getElementById('maxArea').value) / 10;
+            
+            // Create temporary canvas for processing
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = img.width;
+            tempCanvas.height = img.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(img, 0, 0);
+            
+            const imageData = tempCtx.getImageData(0, 0, img.width, img.height);
+            const data = imageData.data;
+            
+            // Convert to grayscale and apply edge detection (Sobel)
+            const gray = new Uint8Array(img.width * img.height);
+            for (let i = 0; i < data.length; i += 4) {
+                gray[i / 4] = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+            }
+            
+            // Simple gradient magnitude
+            const gradient = new Uint8Array(img.width * img.height);
+            for (let y = 1; y < img.height - 1; y++) {
+                for (let x = 1; x < img.width - 1; x++) {
+                    const idx = y * img.width + x;
+                    const gx = gray[idx + 1] - gray[idx - 1];
+                    const gy = gray[idx + img.width] - gray[idx - img.width];
+                    gradient[idx] = Math.sqrt(gx * gx + gy * gy);
+                }
+            }
+            
+            // Threshold
+            const mask = new Uint8Array(img.width * img.height);
+            for (let i = 0; i < gradient.length; i++) {
+                mask[i] = gradient[i] > threshold ? 255 : 0;
+            }
+            
+            // Draw mask to canvas
+            const maskImageData = tempCtx.createImageData(img.width, img.height);
+            for (let i = 0; i < mask.length; i++) {
+                const idx = i * 4;
+                maskImageData.data[idx] = mask[i];
+                maskImageData.data[idx + 1] = mask[i];
+                maskImageData.data[idx + 2] = mask[i];
+                maskImageData.data[idx + 3] = 255;
+            }
+            tempCtx.putImageData(maskImageData, 0, 0);
+            
+            // Scale and draw to display canvas
+            maskCtx.fillStyle = 'black';
+            maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
+            maskCtx.drawImage(tempCanvas, 0, 0, maskCanvas.width, maskCanvas.height);
+            
+            updateStats();
+        }
+        
+        function updateStats() {
+            const imageData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+            const data = imageData.data;
+            let whitePixels = 0;
+            
+            for (let i = 0; i < data.length; i += 4) {
+                if (data[i] > 128) whitePixels++;
+            }
+            
+            const coverage = ((whitePixels / (maskCanvas.width * maskCanvas.height)) * 100).toFixed(2);
+            document.getElementById('maskCoverage').textContent = coverage + '%';
+        }
+        
+        function clearMask() {
+            maskCtx.fillStyle = 'black';
+            maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
+            updateStats();
+        }
+        
+        function downloadMask() {
+            // Create full-size mask
+            const fullCanvas = document.createElement('canvas');
+            fullCanvas.width = img.width;
+            fullCanvas.height = img.height;
+            const fullCtx = fullCanvas.getContext('2d');
+            
+            // Scale up the mask to original size
+            fullCtx.drawImage(maskCanvas, 0, 0, img.width, img.height);
+            
+            // Download
+            fullCanvas.toBlob(function(blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'watermark_mask.png';
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+        }
+        
+        function resetAll() {
+            if (confirm('Reset everything?')) {
+                document.getElementById('canvasContainer').style.display = 'none';
+                document.getElementById('controls').style.display = 'none';
+                document.getElementById('buttons').style.display = 'none';
+                document.getElementById('stats').style.display = 'none';
+                document.getElementById('fileInput').value = '';
+            }
+        }
+    </script>
+</body>
+</html>

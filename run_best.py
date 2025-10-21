@@ -1,17 +1,4 @@
-#!/usr/bin/env python3
-"""
-One solid solution runner.
 
-Tries the pre-trained engine (lama plugin using SD Inpaint) for best clarity.
-If unavailable, falls back to the AI DIP engine. As a last resort, uses the
-fast OpenCV inpainting path.
-
-Usage:
-  python run_best.py --input image.png --output outputs/final_best.png
-
-Optional env knobs (for pretrained engine):
-  WMR_SD_ERODE=2 WMR_SD_FEATHER=14 WMR_SD_STRENGTH=0.7 WMR_SD_GUIDANCE=6.5
-"""
 import argparse
 import os
 import sys
@@ -26,31 +13,67 @@ def main():
     ap.add_argument("--quality", choices=["fast", "balanced", "high"], default="balanced")
     ap.add_argument("--mask", help="Optional external mask (white = remove)")
     ap.add_argument("--debug", action="store_true")
+    # Add argument for specifying model type
+    ap.add_argument("--model", choices=["lama", "sd-inpaint", "lama-standalone", "fast", "ai"], 
+                   default="sd-inpaint", help="Model type to use for watermark removal")
     args = ap.parse_args()
 
     os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
 
     remover = WatermarkRemover(debug=args.debug)
 
-    # 1) Try pretrained (lama plugin / SD inpaint)
+    # 1) Try state-of-the-art pre-trained models (new approach)
     try:
-        ok = remover.process_image_lama(
-            args.input,
-            args.output,
-            lama_model_dir=os.environ.get("WMR_SD_MODEL_DIR"),
-            lama_plugin=os.environ.get("WMR_LAMA_PLUGIN", "plugins.lama_plugin"),
-            mask_path=args.mask,
-            quality_preset=args.quality,
-        )
-        if ok:
-            print("✓ Pretrained engine succeeded")
-            return 0
+        if args.model in ["sd-inpaint", "lama-standalone"]:
+            ok = remover.process_image_pretrained(
+                args.input,
+                args.output,
+                mask_path=args.mask,
+                model_type=args.model if args.model != "lama-standalone" else "lama",
+                quality_preset=args.quality,
+            )
+            if ok:
+                print("✓ State-of-the-art pre-trained model succeeded")
+                return 0
+            else:
+                print("… Pre-trained model returned False, trying lama plugin…")
         else:
-            print("… Pretrained engine returned False, trying AI engine…")
+            # If not using our new models, try lama plugin
+            ok = remover.process_image_lama(
+                args.input,
+                args.output,
+                lama_model_dir=os.environ.get("WMR_SD_MODEL_DIR"),
+                lama_plugin=os.environ.get("WMR_LAMA_PLUGIN", "plugins.lama_plugin"),
+                mask_path=args.mask,
+                quality_preset=args.quality,
+            )
+            if ok:
+                print("✓ Pretrained engine succeeded")
+                return 0
+            else:
+                print("… Pretrained engine returned False, trying state-of-the-art pre-trained model…")
     except Exception as e:
-        print(f"… Pretrained engine unavailable: {e}\nTrying AI engine…")
+        print(f"… Pretrained approach unavailable: {e}\nTrying AI engine…")
 
-    # 2) Fall back to AI DIP
+    # 2) Try state-of-the-art pre-trained models as fallback if not tried already
+    if args.model != "sd-inpaint" and args.model != "lama-standalone":
+        try:
+            ok = remover.process_image_pretrained(
+                args.input,
+                args.output,
+                mask_path=args.mask,
+                model_type='sd-inpaint',
+                quality_preset=args.quality,
+            )
+            if ok:
+                print("✓ State-of-the-art pre-trained model succeeded")
+                return 0
+            else:
+                print("… Pre-trained model returned False, trying AI engine…")
+        except Exception as e:
+            print(f"… State-of-the-art pre-trained model unavailable: {e}\nTrying AI engine…")
+
+    # 3) Fall back to AI DIP
     try:
         ok = remover.process_image_ai(
             args.input,
@@ -73,7 +96,7 @@ def main():
     except Exception as e:
         print(f"… AI engine unavailable: {e}\nTrying fast engine…")
 
-    # 3) Last resort: fast inpainting
+    # 4) Last resort: fast inpainting
     ok = remover.process_image_fast(
         args.input,
         args.output,

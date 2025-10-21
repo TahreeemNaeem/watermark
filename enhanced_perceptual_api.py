@@ -1,6 +1,3 @@
-"""
-Enhanced API with improved perceptual loss and image quality preservation
-"""
 
 import torch
 import torch.nn as nn

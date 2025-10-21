@@ -1,15 +1,17 @@
-numpy==1.26.4
-Pillow>=10.0.0
-opencv-python-headless==4.10.0.84
-scipy==1.10.1
+numpy>=1.21.0
+Pillow>=9.0.0
+opencv-python>=4.8.0
+scipy
 tqdm
-matplotlib
-scikit-learn
-# Optional UI (simple upload):
-gradio==4.44.0
-gradio_client==0.16.4
-fastapi>=0.114
-starlette>=0.41
-uvicorn>=0.30
-# Install PyTorch separately from official index if needed for AI engine:
-# pip install --prefer-binary --index-url https://download.pytorch.org/whl/cpu torch torchvision torchaudio
+torch>=2.2.0
+torchvision>=0.17.0
+diffusers
+transformers
+accelerate
+safetensors
+PyYAML
+omegaconf
+huggingface_hub
+lama-cleaner
+ultralytics
+git+https://github.com/facebookresearch/sam2.git

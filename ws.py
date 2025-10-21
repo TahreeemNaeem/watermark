@@ -791,6 +791,26 @@ class WatermarkRemover:
                 if self.debug:
                     print(f"LaMa plugin failed: {e}; falling back to fast inpaint")
 
+            # Try new pre-trained approach with enhanced models
+            if self._can_use_pretrained_models():
+                try:
+                    ok = self.process_image_pretrained(
+                        input_path,
+                        output_path,
+                        mask_path=tmp_mask,
+                        quality_preset=quality_preset
+                    )
+                    if ok:
+                        if self.debug:
+                            print("Pre-trained model approach succeeded")
+                        return True
+                    else:
+                        if self.debug:
+                            print("Pre-trained model approach returned False, trying AI engine...")
+                except Exception as e:
+                    if self.debug:
+                        print(f"Pre-trained model approach unavailable: {e}; trying AI engine...")
+
             if self._can_use_ai_engine():
                 try:
                     if self.process_image_ai(
@@ -824,6 +844,74 @@ class WatermarkRemover:
         except Exception as e:
             if self.debug:
                 print(f"Lama path failed: {e}")
+            return False
+
+    # -------------------- NEW PRETRAINED PATH (State-of-the-art models) --------------------
+    def _can_use_pretrained_models(self) -> bool:
+        """Check if we can use enhanced pre-trained models"""
+        try:
+            return importlib.util.find_spec('torch') is not None
+        except Exception:
+            return False
+
+    def process_image_pretrained(
+        self,
+        input_path: str,
+        output_path: str,
+        mask_path: Optional[str] = None,
+        model_type: str = 'sd-inpaint',  # 'sd-inpaint', 'lama', 'opencv'
+        quality_preset: str = 'balanced',
+    ) -> bool:
+        """
+        Process image using state-of-the-art pre-trained models for watermark removal.
+        """
+        try:
+            # Import the pre-trained model implementation
+            from pretrained_watermark_removal import remove_watermark_with_pretrained
+            
+            # Get presets based on quality
+            presets = {
+                'fast': {
+                    'num_inference_steps': 20,
+                    'guidance_scale': 7.0,
+                },
+                'balanced': {
+                    'num_inference_steps': 30,
+                    'guidance_scale': 7.5,
+                },
+                'high': {
+                    'num_inference_steps': 40,
+                    'guidance_scale': 8.0,
+                },
+            }
+            conf = presets.get(quality_preset, presets['balanced'])
+            
+            # Create temporary mask if not provided
+            tmp_mask = None
+            if mask_path:
+                tmp_mask = self._ensure_mask_file(mask_path, input_path, suffix='_pretrained_mask.png')
+            if not tmp_mask or not os.path.exists(tmp_mask):
+                tmp_mask = self.generate_temporary_mask(input_path)
+            if not tmp_mask or not os.path.exists(tmp_mask):
+                tmp_mask = self.create_mask(input_path, output_path)
+            
+            if not os.path.exists(tmp_mask):
+                raise ValueError(f"Could not generate mask for {input_path}")
+            
+            # Process with pre-trained model
+            result = remove_watermark_with_pretrained(
+                image_path=input_path,
+                mask_path=tmp_mask,
+                output_path=output_path,
+                model_type=model_type,
+            )
+            
+            if self.debug:
+                print(f"Pre-trained model path completed: {input_path} -> {output_path}")
+            return True
+        except Exception as e:
+            if self.debug:
+                print(f"Pre-trained path failed: {e}")
             return False
 
     def _can_use_ai_engine(self) -> bool:
@@ -972,7 +1060,7 @@ def main():
     parser.add_argument('input', help='Input image path or directory', nargs='?', default='image.png')
     parser.add_argument('output', help='Output image path or directory', nargs='?', default='output.png')
     parser.add_argument('--batch', action='store_true', help='Batch process a directory')
-    parser.add_argument('--engine', choices=['fast', 'ai', 'lama'], default='fast', help='Removal engine to use')
+    parser.add_argument('--engine', choices=['fast', 'ai', 'lama', 'pretrained'], default='fast', help='Removal engine to use')
     parser.add_argument('--mask', type=str, default=None, help='Path to external mask image (white pixels will be removed)')
     parser.add_argument('--save-mask', action='store_true', help='Save detected mask alongside output (fast engine)')
     parser.add_argument('--radius', type=int, default=3, help='Inpaint radius for fast engine')
@@ -1039,7 +1127,15 @@ def main():
         # Redirect debug images into this folder via environment variable read in _auto_detect_mask
         os.environ['WMR_DEBUG_DIR'] = args.debug_dir
 
-    if args.engine == 'ai':
+    if args.engine == 'pretrained':
+        success = remover.process_image_pretrained(
+            args.input,
+            output_path,
+            mask_path=args.mask,
+            model_type='sd-inpaint',  # Default to SD inpaint
+            quality_preset=args.quality,
+        )
+    elif args.engine == 'ai':
         success = remover.process_image_ai(
             args.input,
             output_path,
